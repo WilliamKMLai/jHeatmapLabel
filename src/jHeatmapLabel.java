@@ -35,52 +35,107 @@ public class jHeatmapLabel {
 		// Load command line parameters
 		loadConfig(args);
 		
+		// Initialize empty SVG object
+		SVGGraphics2D svg = new SVGGraphics2D(0,0);
+		// Set font parameters
+		svg.setFont(new Font("Arial", Font.PLAIN, FONTSIZE));
+
 		// Import PNG image
 		BufferedImage image = ImageIO.read(INPUT);
 		// Get initial image size
 		int Height = image.getHeight();
 		int Width = image.getWidth();
 
-		// Initialize SVG object
-		SVGGraphics2D svg = new SVGGraphics2D(Width, Height);
+		// Adjust dimensions based on what we draw
+		int rightPad = (borderWidth / 2);
+		int leftPad = (borderWidth / 2);
+		int bottomPad = XtickHeight - (borderWidth / 2);
+		//System.out.println(leftPad + "\t" + rightPad + "\t" + bottomPad);
+		
+		// Account for x-label if exists
+		if(!xLabel.equals("")) {
+			bottomPad += (FONTSIZE * 1.5);
+			// Account for x-label side-padding if exists
+			int XlabelSize = svg.getFontMetrics().stringWidth(xLabel);
+			if((XlabelSize - Width) / 2 > leftPad) {
+				leftPad += ((XlabelSize - Width) / 2);
+			}
+			if((XlabelSize - Width) / 2 > rightPad) {
+				rightPad += ((XlabelSize - Width) / 2);
+			}
+		}
+		
+		// Account for y-label if exists
+		if(!yLabel.equals("")) {
+			if(leftPad < (FONTSIZE * 1.5)) {
+				leftPad = (int)(FONTSIZE * 1.5) + (borderWidth / 2);
+			}
+		}
+		
+		// Account for X-axis tickmark labels
+		if(!XleftLabel.equals("") || !XmidLabel.equals("") || !XrightLabel.equals("")) {
+			// Account for bottom padding
+			bottomPad += (FONTSIZE * 1.5);
+			
+			// Account for X-axis tickmark labels on side-padding
+			if(!XleftLabel.equals("")) {
+				int XleftSize = svg.getFontMetrics().stringWidth(XleftLabel);
+				if((XleftSize / 2) > leftPad) {
+					leftPad += ((XleftSize / 2) - leftPad);
+				}
+			}
+			if(!XrightLabel.equals("")) {
+				int XrightSize = svg.getFontMetrics().stringWidth(XrightLabel);
+				if((XrightSize / 2) > rightPad) {
+					rightPad += ((XrightSize / 2) - rightPad);
+				}
+			}	
+			
+		}
+		
+		// Re-initialize SVG object
+		svg = new SVGGraphics2D(leftPad + Width + rightPad, Height + bottomPad);
+		// Re-set font parameters
+		svg.setFont(new Font("Arial", Font.PLAIN, FONTSIZE));
+		
+		int newHeight = svg.getHeight();
+		int newWidth = svg.getWidth();
+		
 		svg.setColor(color);
 		// Set thickness of border
 		svg.setStroke(new BasicStroke(borderWidth));
 		
+		// Draw heatmap
+		svg.drawImage(image, leftPad, (borderWidth / 2), null);
 		// Draw rectangle around PNG
-		svg.drawImage(image, 0, 0, null);
-		svg.draw(new Rectangle(0, 0, Width, Height));
+		svg.draw(new Rectangle(leftPad, (borderWidth / 2), Width, Height));
 		
 		// Draw left x-axis tickmark
-		svg.drawLine(0, Height, 0, Height + XtickHeight);
+		svg.drawLine(leftPad, Height + (borderWidth / 2), leftPad, Height + (borderWidth / 2) + XtickHeight);
 		// Draw mid x-axis tickmark
-		svg.drawLine((Width / 2), Height, (Width / 2), Height + XtickHeight);
+		svg.drawLine(newWidth - (Width / 2) - rightPad, Height + (borderWidth / 2), newWidth - (Width / 2) - rightPad, Height + (borderWidth / 2) + XtickHeight);
 		// Draw right x-axis tickmark
-		svg.drawLine(Width, Height, Width, Height + XtickHeight);
+		svg.drawLine(newWidth - rightPad, Height + (borderWidth / 2), newWidth - rightPad, Height + (borderWidth / 2) + XtickHeight);
 		
-		// Set font parameters
-		svg.setFont(new Font("Arial", Font.PLAIN, FONTSIZE));
-
 		// Draw X-axis tickmark labels
 		if(!XleftLabel.equals("")) {
 			int XleftSize = svg.getFontMetrics().stringWidth(XleftLabel);
-			svg.drawString(XleftLabel, -1 * (XleftSize / 2), Height + XtickHeight + FONTSIZE);
+			svg.drawString(XleftLabel, leftPad - (XleftSize / 2), Height + XtickHeight + FONTSIZE);
 		}
 		if(!XmidLabel.equals("")) {
 			int XmidSize = svg.getFontMetrics().stringWidth(XmidLabel);
-			svg.drawString(XmidLabel, (Width / 2) - (XmidSize / 2), Height + XtickHeight + FONTSIZE);
+			svg.drawString(XmidLabel, (newWidth - (Width / 2)) - rightPad - (XmidSize / 2), Height + XtickHeight + FONTSIZE);
 		}
 		if(!XrightLabel.equals("")) {
 			int XrightSize = svg.getFontMetrics().stringWidth(XrightLabel);
-			svg.drawString(XrightLabel, Width - (XrightSize / 2), Height + XtickHeight + FONTSIZE);
+			svg.drawString(XrightLabel, newWidth - rightPad - (XrightSize / 2), Height + XtickHeight + FONTSIZE);
 		}
 		
 		// Draw X-label
 		if(!xLabel.equals("")) {
 			int Xmidpoint = svg.getFontMetrics().stringWidth(xLabel);
-			svg.drawString(xLabel, (Width / 2) - (Xmidpoint / 2), Height + XtickHeight + (FONTSIZE * 2) );
+			svg.drawString(xLabel, (newWidth - (Width / 2) - rightPad) - (Xmidpoint / 2), newHeight - (FONTSIZE / 2));
 		}
-		
 		// Draw Y-label
 		if(!yLabel.equals("")) {
 			int Ymidpoint = svg.getFontMetrics().stringWidth(yLabel);
@@ -88,7 +143,7 @@ public class jHeatmapLabel {
 			AffineTransform orig = svg.getTransform();
 			// Rotate drawing space 180 degrees
 			svg.rotate(-Math.PI/2);
-			svg.drawString(yLabel, -1 * ((Height / 2) + (Ymidpoint / 2)), -1 * FONTSIZE);
+			svg.drawString(yLabel, -1 * ((Height / 2) + (Ymidpoint / 2)), newWidth - rightPad - Width - (FONTSIZE / 2));
 			// Restore original orientation
 			svg.setTransform(orig);
 		}
